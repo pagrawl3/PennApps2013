@@ -17,3 +17,8 @@
 .player2 {
 	float: right;
 }
+
+.visualizer {
+	height: 30px;
+	background-color: #000;
+}
