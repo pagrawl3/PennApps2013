@@ -1,151 +1,77 @@
-function loadSong(url, startDOM, stopDOM) {
-		console.log(startDOM);
-	    var context, soundSource, soundBuffer;
-
-	    // Step 1 - Initialise the Audio Context
-	    function init() {
-	        if (typeof AudioContext !== "undefined") {
-	            context = new AudioContext();
-	        } else if (typeof webkitAudioContext !== "undefined") {
-	            context = new webkitAudioContext();
-	        } else {
-	            throw new Error('AudioContext not supported. :(');
-	        }
-	    }
-
-	    // Step 2: Load our Sound using XHR
-	    function startSound() {
-	        // Note: this loads asynchronously
-	        var request = new XMLHttpRequest();
-	        request.open("GET", url, true);
-	        request.responseType = "arraybuffer";
-
-	        // Our asynchronous callback
-	        request.onload = function() {
-	            var audioData = request.response;
-	            audioGraph(audioData);
-	        };
-
-	        request.send();
-	    }
-
-	    // Finally: tell the source when to start
-	    function playSound() {
-	        // play the source now
-	        soundSource.noteOn(context.currentTime);
-	    }
-
-	    function stopSound() {
-	        // stop the source now
-	        soundSource.noteOff(context.currentTime);
-	    }
-
-	    // Events for the play/stop bottons
-	    document.querySelector(startDOM).addEventListener('click', startSound);
-	    document.querySelector(stopDOM).addEventListener('click', stopSound);
+//GLOBALS
+var songs = [],
+	song_count = 2,
+	ready = 0;
 
 
-	    // This is the code we are interested in:
-	    function audioGraph(audioData) {
-	        soundSource = context.createBufferSource();
-	        soundBuffer = context.createBuffer(audioData, true);
-	        soundSource.buffer = soundBuffer;
+//FUNCTION DEFS
+function createAudio(source, num, track) {
+	var audio = new Audio();
+	audio.src = source;
+	audio.controls = true;
+	audio.autoplay = false;
+	document.body.appendChild(audio);
 
-	        analyser = context.createAnalyser();
-			analyser.smoothingTimeConstant = 0.9;
-			analyser.fftSize = 512;
+	var context = new webkitAudioContext();
 
-	        volumeNode = context.createGainNode();
+	// Wait for window.onload to fire. See crbug.com/112368
+	window.addEventListener('load', function(e) {
+	  var source = context.createMediaElementSource(audio);
+	  filterNode = context.createBiquadFilter();
+	  // Specify this is a lowpass filter
+	  filterNode.type = 0;
+	  // Quieten sounds over 220Hz
+	  filterNode.frequency.value = 220;
+	  source.connect(filterNode);
+	  // filterNode.connect(context.destination);
+	  source.connect(context.destination);
+	  songs[num] = {};
+	  songs[num].source = source.mediaElement;
+	}, false);
 
-	        //Set the volume
-	        volumeNode.gain.value = 1.0;
+	fetchAJAX(track.artist, track.title, num);
+}
 
-	        // Wiring
-	        soundSource.connect(volumeNode);
-	        volumeNode.connect(context.destination);
-	        soundSource.connect(analyser);
-
-	        var avg = 0,
-	        	count = 0,
-	        	hits = 0,
-	        	count_limit=1100,
-	        	hit_limit=180,
-	        	prev_count=0,
-	        	check = false,
-	        	chromeTime = window.performance.now(),
-	        	bpm=0,
-	        	num_thres = 0;
-
-	        FFTData = new Uint8Array(analyser.frequencyBinCount);
-	        setInterval(function(){
-	        	count=window.performance.now() - chromeTime;
-				analyser.getByteFrequencyData(FFTData);
-				// analyser.getByteTimeDomainData(FFTData);
-				// avg = getAvg(FFTData);
-				avg = (FFTData[0]+FFTData[1])/2
-				if (avg > hit_limit && (count - prev_count > count_limit)) {
-					// console.log(count - prev_count);
-					num_thres++;
-					if (num_thres > 10) {
-						prev_count = count;
-						hits++;
-						// console.log(hits, count);
-						// $('.visualizer').css('width', avg);
-						bpm = hits*60000/(count)
-						console.log(bpm);
-					}
-					else {
-						chromeTime = window.performance.now();
-					}
+function fetchAJAX(artist, title, num) {
+	$.ajax({
+		url		: 'http://developer.echonest.com/api/v4/song/search',
+		data 	: {
+			api_key : 'MYH0286UM2UX0WTYI',
+			artist 	: artist,
+			title 	: title,
+			bucket	: 'audio_summary'
+		},
+		success	: function(data) {
+			$.get(data.response.songs[0].audio_summary.analysis_url, function(details) {
+				ready++;
+				songs[num].details = details;
+				songs[num].bpm = data.response.songs[0].audio_summary.tempo;
+				if (ready === song_count) {
+					final();
 				}
-			},1);
-
-	        // Finally
-	        playSound(soundSource);
-	        soundSource.playbackRate.value = 1.0;
-	    }
-
-	    function getAvg(arr) {
-	    	var sum = 0,
-	    		n = 8;
-	    	for (var i=0; i < n; i++) {
-	    		sum += arr[i];
-	    	}
-	    	return sum/n;
-	    }
-
-
-	    init();
+			});
+		}
+	});
 }
 
-loadSong('http://localhost:3000/addicted.mp3', '.play', '.stop');
-loadSong('http://localhost:3000/lonely.mp3', '.play2', '.stop2');
-
-function danceBitch() {
-	console.log ('loaded');
-	var dancer = new Dancer();
-
-	// Using an audio object
-	var a = new Audio();
-	a.src = 'http://localhost:3000/lonely.mp3';
-	dancer.load(a);
-
-	document.querySelector('.play').addEventListener('click', function(){dancer.play()});
-	document.querySelector('.stop').addEventListener('click', function(){dancer.pause()});
-
-	var data = 0;
-	var count = 0;
-	setInterval(function(){
-		if (dancer.isPlaying()) {
-			dancer.source.playbackRate.value = 5.0
-			count++
-	        // data = (data*(count-1) + dancer.getFrequency(0,100))/count;
-	        data += dancer.getFrequency(0,50);
-	        // console.log(data/count, count);
-	        console.log(dancer.context)
-	    }
-	},100);
+function final() {
+	console.log(songs);
+	// console.log(songs[1].source.playbackRate);
+	songs[1].source.playbackRate = songs[0].bpm/songs[1].bpm;
+	songs.forEach(function (song) {
+		console.log(song.details.bars[0].start);
+		song.source.currentTime = song.details.bars[0].start;
+		song.source.play();
+	});
 }
 
+//EXECS
+createAudio('http://localhost:3000/bruno.mp3', 0, {
+	artist: 'Bruno Mars',
+	title: 'Just the way you are'
+});
 
-// danceBitch();
+createAudio('http://localhost:3000/nelly.mp3', 1, {
+	artist: 'Nelly',
+	title: 'Just a dream'
+});
