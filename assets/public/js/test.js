@@ -49,20 +49,32 @@ function loadSong(url, startDOM, stopDOM) {
 	    function audioGraph(audioData) {
 	        soundSource = context.createBufferSource();
 	        soundBuffer = context.createBuffer(audioData, true);
+	        currTime = context.currentTime;
 	        soundSource.buffer = soundBuffer;
 
 	        analyser = context.createAnalyser();
 			analyser.smoothingTimeConstant = 0.3;
 			analyser.fftSize = 1024;
 
-	        volumeNode = context.createGainNode();
+			filter = context.createBiquadFilter();
+
+	        // volumeNode = context.createGainNode();
 
 	        //Set the volume
-	        volumeNode.gain.value = 1.0;
+	        // volumeNode.gain.value = 1.0;
+	        
 
 	        // Wiring
-	        soundSource.connect(volumeNode);
-	        volumeNode.connect(context.destination);
+	        // soundSource.connect(volumeNode);
+	        // volumeNode.connect(context.destination);
+
+			soundSource.connect(filter);
+			filter.connect(context.destination);
+			filter.type=0;
+			filter.frequency.value = 10;
+			// filter.Q.value = 500;
+			filter.gain.value = 1000;
+			console.log(filter.type);
 
 	        // Finally
 	        playSound(soundSource);
