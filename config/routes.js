@@ -26,6 +26,8 @@ module.exports = function(params) {
 		socket.emit('testSuccess', {success: 'yay!'});
 	}, io);
 
+	app.get('/test', main.test);
+
  	//__FINALLY IF THERE IS NO KNOWN URL INCL. '/' THEN GO TO HOME
  	app.get('/*', main.index);
 }
