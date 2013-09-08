@@ -5,3 +5,7 @@ exports.index = function (req, res) {
 exports.test = function (req, res) {
 	res.render('test');
 }
+
+exports.echo = function (req, res) {
+	res.render('echo');
+}

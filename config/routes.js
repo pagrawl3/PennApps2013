@@ -27,6 +27,7 @@ module.exports = function(params) {
 	}, io);
 
 	app.get('/test', main.test);
+	app.get('/echo', main.echo);
 
  	//__FINALLY IF THERE IS NO KNOWN URL INCL. '/' THEN GO TO HOME
  	app.get('/*', main.index);
